@@ -1,0 +1,25 @@
+.vscode/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+
+# Data files
+*.csv
+
+# Trained models and their progress
+*.mdl
+*.npy
+*.png
+
+# Simulator
+_Ilmarinen.pyd
+Ilmarinen.py
+TC/
