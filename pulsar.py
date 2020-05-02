@@ -8,13 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Hyperparameters
-gamma = 0.95
-alpha = 0.10
-e = 50 # epsilon converges
+gamma = 0.99
+alpha = 0.6
+e = 500 # epsilon converges
 
 # Grid parameters
 angle_dt = 100 #1334 # Number of possible states with 2.5us step and 60rpm.
-actions = np.linspace(-0.10, 0.10, 5)
+actions = np.linspace(-0.23, 0.23, 5) #7
 th_min, th_max = 0, 1
 th_grid = np.linspace(th_min, th_max, angle_dt)
 
@@ -94,6 +94,7 @@ def test(env, qtable, episodes, render=False):
 def train(env, qtable, episodes, render=False):
     reward_history = []
     average_reward_history = []
+    max_rewrd = -10 # some initial guess which skips early values
 
     for episode_number in range(1, episodes+1):
         reward_sum, timesteps = 0, 0
@@ -121,14 +122,17 @@ def train(env, qtable, episodes, render=False):
             if render and episode_number % 1 == 0:
                 env.render()
 
-        print("Episode {}, total reward {:.2f}, trip {}, timesteps {}, torque avg. {}".format(episode_number, reward_sum, info, timesteps, 0))
+        if episode_number % 10 == 0 and episode_number > 50:
+            print("Episode {}, total reward {:.2f}, trip {}, timesteps {}, torque avg. {}".format(episode_number, reward_sum, info, timesteps, 0))
+
 
         reward_history.append(reward_sum)   
-        avg = np.mean(reward_history[-10:]) if episode_number > 5 else np.mean(reward_history)
+        avg = np.mean(reward_history[-10:]) if episode_number > 10 else np.mean(reward_history)
         average_reward_history.append(avg)
 
-        if episode_number % 50 == 0:
-            # TODO: save epsilon and rewards
+        #if episode_number % 50 == 0:
+        if reward_sum >= max_rewrd and info > 99:
+            max_rewrd = reward_sum
             np.save("qtable.npy", qtable)
             print("Grid signature:", getGridSignature(qtable))
             print("Epsilon:", epsilon)
