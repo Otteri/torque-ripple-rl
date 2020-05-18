@@ -48,7 +48,7 @@ def parseArgs(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", "-t", type=str, default=None, help="Model to be tested")
     parser.add_argument("--episodes", "-ep", type=int, default=500, help="Number of episodes to train for")
-    parser.add_argument("--render", action='store_true', help="Render compensation waveform")
+    parser.add_argument("--render", action='store_true', default=None, help="Render compensation waveform")
     parser.add_argument("--load", type=str, default=None, help="Load model and continue training")
     parser.add_argument("--no_compensation", action='store_true', default=None, help="Does not use or train compensator")
     return parser.parse_args(args)
@@ -58,9 +58,12 @@ def plotReward(reward_history, average_reward_history):
     plt.close('all')
     episodes = np.arange(len(reward_history))
     fig = plt.figure()
-    plt.plot(episodes, reward_history, color='lightblue', alpha=0.8)
-    plt.plot(episodes, average_reward_history, linewidth=0.8, color='b')
-    fig.savefig("reward-history")
+    plt.plot(episodes, reward_history, label='Instantaneous reward', color='lightblue', alpha=0.8)
+    plt.plot(episodes, average_reward_history, label='Reward average' ,linewidth=0.8, color='b')
+    plt.xlabel('Episode number')
+    plt.ylabel('Reward')
+    plt.legend(loc='lower right')
+    fig.savefig("reward-history.svg")
 
 # Returns best action if random number [0, 1] is larger than epsilon.
 # Hence, to always get best action, give epsilon < 0.
@@ -126,13 +129,14 @@ def train(env, qtable, episodes, render=False):
             print("Episode {}, total reward {:.2f}, trip {}, timesteps {}, torque avg. {}".format(episode_number, reward_sum, info, timesteps, 0))
 
 
-        reward_history.append(reward_sum)   
-        avg = np.mean(reward_history[-10:]) if episode_number > 10 else np.mean(reward_history)
-        average_reward_history.append(avg)
+        if reward_sum < -1.0:
+            reward_history.append(reward_sum)
+            avg = np.mean(reward_history[-100:]) if episode_number > 100 else np.mean(reward_history)
+            average_reward_history.append(avg)
 
-        #if episode_number % 50 == 0:
-        if reward_sum >= max_rewrd and info > 99:
-            max_rewrd = reward_sum
+        if episode_number % 50 == 0:
+        #if reward_sum >= max_rewrd and info > 99:
+        #    max_rewrd = reward_sum
             np.save("qtable.npy", qtable)
             print("Grid signature:", getGridSignature(qtable))
             print("Epsilon:", epsilon)

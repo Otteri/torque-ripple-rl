@@ -22,6 +22,11 @@ def createHeader(data):
         np.savetxt(f, data, fmt="%-7.4f", delimiter=",", newline=",\n")
         f.write(bytes("};\n", 'utf-8'))
 
+
+def verify(data):
+    for i in range(0, 100):
+        print(data[i])
+
 if __name__ == "__main__":
     grid_name = 'qtable.npy'
     data = loadGrid(grid_name)
@@ -30,6 +35,8 @@ if __name__ == "__main__":
         createHeader(data)
     else:
         createCsv(data)
+
+    verify(data)
 
 # state: [angle, action]
 # \ a c t i o n

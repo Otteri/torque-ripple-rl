@@ -10,6 +10,10 @@ class IlmarinenEnv(gym.Env):
     signal_prev = 0
     angle_prev = 1 # can't know, assume max
 
+    differencies = np.zeros(500)
+    integral = 0
+    prev_actual = 0
+
     last_compensation_value = 0
     # TODO: try to learn one amplitude and mirror that to all others 
     # encountering on a elec period.
@@ -41,8 +45,8 @@ class IlmarinenEnv(gym.Env):
 
     def __init__(self, visual=False, compensation=True):
         self.sim = Ilmarinen.SandboxApi()
-        self.compensation = compensation
-        self.step_size = 0.001 # can see up to 100hz; can compensate 24 * 4 = 96
+        self.compensation = compensation # why does variation imrpove the score?
+        self.step_size = 0.001 # + np.random.uniform(0.0, 0.005) # can see up to 100hz; can compensate 24 * 4 = 96
         self.max_steps = 2051
         # 0.001 * 1000 = 1 (s);  60 / 60 = 1 rev/s mech
 
@@ -88,21 +92,25 @@ class IlmarinenEnv(gym.Env):
         # stay steady. Give positive reward if the value stays ~constant.
         # If the difference is huge, then give negative reward.
 
+        # def getReward(reference, actual):
+        #     #difference = abs(reference - actual)
+        #     difference = abs(reference - actual)
+        #     #reward = -(difference**2) # Use negative cost as reward:
+        #     #reward = -0.2 * abs(actual - self.last_compensation_value)
+        #     reward = -difference
+        #     return reward
+
         def getReward(reference, actual):
-            #difference = abs(reference - actual)
+            self.prev_actual = actual
             difference = abs(reference - actual)
-            #reward = -(difference**2) # Use negative cost as reward:
-            #reward = -0.2 * abs(actual - self.last_compensation_value)
-            reward = -difference
-            return reward
-            # if -0.05 < self.last_compensation_value and self.last_compensation_value < 0.5:
-            #     return reward
-            # elif -0.10 < self.last_compensation_value and self.last_compensation_value < 0.10:
-            #     return 1.25 * reward
-            # elif -0.15 < self.last_compensation_value and self.last_compensation_value < 0.15:
-            #     return 1.5 * reward
-            # else:
-            #     return 1.5 * reward - abs(self.last_compensation_value) # penalty for wasting energy with huge corrections
+            #out = difference + self.integral
+            #self.integral = 0.2 * self.integral + difference
+            #if self.integral > 20.0:
+            #    self.integral = 20
+            #print("integral: ", self.integral)          
+            #cost = 2.0 * abs(actual - self.prev_actual) + abs(actual - reference)
+            cost = difference
+            return -cost
 
         # Done if some of the following conditions have occured:
         # 1) Max step number has been reached
@@ -128,8 +136,11 @@ class IlmarinenEnv(gym.Env):
 
 
         self.sim.command.step(self.step_size)
-        response_signal = self.sim.signal.gt_FA2TC_data_().n_meas
+        #response_signal = self.sim.signal.gt_FA2TC_data_().n_meas
+        #response_signal = self.sim.signal.getMeasuredSpeed()
         reward = getReward(0, self.sim.signal.getSimActualTorque())
+        #reward = getReward(0.03, response_signal)
+        #reward = getReward(60, response_signal)
         #reward = getReward(self.sim.signal.getSpeedReference(), response_signal)
         done = getDone()
         info = self.sim.signal.getTripCode()
@@ -144,6 +155,7 @@ class IlmarinenEnv(gym.Env):
     # New period has started. Just reset steps.
     def reset(self):
         #print("step num:", self.step_num)
+        self.integral = 0
         self.step_num = 0
         signal = self.sim.signal.getSimActualTorqueFiltered()
         angle = self.sim.signal.getRotorElectricalAngleCtrl()
