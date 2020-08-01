@@ -10,6 +10,9 @@ Torque pulsation can be learned and then compensated. The agent in `pulsar.py` l
     <img src="images/4900-episodes.gif" width="49%" />
 </div>
 
+## Reward history  
+![](images/reward-history.svg)
+
 ## Installation
 `activate virtuan environment`  
 `pip install -e ilmarinen_gym/`
