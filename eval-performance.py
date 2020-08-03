@@ -7,7 +7,7 @@ DPI = 100 # Plot resolution
 def runSimulator(use_compensator=False):
     N = 1000 # amount of samples
     sim = Ilmarinen.SandboxApi()
-    sim.command.setSpeedReference(0.03)
+    sim.command.setSpeedReference(0.02)
 
     # Preallocate space
     time = np.zeros(N)
@@ -16,7 +16,7 @@ def runSimulator(use_compensator=False):
     if use_compensator:
         sim.command.toggleLearning(True)
         sim.command.toggleQlr(True)
-        sim.command.step(250) # let learn (run 250s)
+        sim.command.step(999) # let learn (run 250s)
     else:
         sim.command.step(10) # let Ilmarinen to settle
 
@@ -48,7 +48,7 @@ def lineChart(time, data, title):
 
     plt.title(title)
     plt.xlabel("Time [s]")
-    plt.ylabel("Amplitude [p.u.]")
+    plt.ylabel("Amplitude [pu.]")
     plt.legend(loc=1)
     plt.grid(True)
     plt.show(block=False)

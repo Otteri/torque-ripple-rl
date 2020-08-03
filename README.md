@@ -13,6 +13,14 @@ Torque pulsation can be learned and then compensated. The agent in `pulsar.py` l
 ### Reward history  
 ![reward-history](images/reward-history.svg)
 
+### Compensation performance
+The compensation performance depends heavily on discretization. With seven actions, as shown in gifs, the torque ripple reduction is already very noticeable:
+<div>
+    <img src="images/fft-compensator-disabled.svg" width="49%" />
+    <img src="images/fft-compensator-enabled.svg" width="49%" /> 
+</div>
+
+
 ## Installation
 `activate virtuan environment`  
 `pip install -e ilmarinen_gym/`
