@@ -13,6 +13,7 @@ eggs/
 
 # Data files
 *.csv
+reward-history.svg
 
 # Trained models and their progress
 *.mdl
