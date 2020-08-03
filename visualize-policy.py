@@ -51,11 +51,11 @@ def oneRotation():
     return thetas, actions
 
 def anglePlot(X, Y):
-    fig, ax = plt.subplots(figsize=(16,10), dpi=120)
+    fig, ax = plt.subplots(figsize=(16,10), dpi=100)
     plt.grid(True, linestyle='dotted', color='silver')
     ax.plot(X, Y, '-o', label='Pulsating torque', linewidth=1.0, markersize=4, color='blue')
     plt.ylabel("Torque [pu.]", fontsize=18)
-    plt.xlabel(r"Rotor angle [$\theta_{e}$]", labelpad=-5, fontsize=20)
+    plt.xlabel(r"Rotor angle ($\theta_{e}$)", labelpad=-5, fontsize=20)
     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
     labels = [0, 0, r'$\frac{\pi}{2}$', r'$\pi$', r'$\frac{3\pi}{2}$', r'$2\pi$']
     ax.set_xticklabels(labels, fontsize=20)

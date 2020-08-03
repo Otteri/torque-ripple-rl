@@ -1,7 +1,7 @@
 import sys
 import time
 import argparse
-from train import main
+from python_interface import Ilmarinen
 import torch.multiprocessing as mp
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +27,68 @@ colors = [color1, color2, color3, color4, color5, color6]
 labels = ['0.20', '0.40', '0.60', '0.80', '0.87', '0.95'] # gammas
 #labels = ['0.10', '0.20', '0.30', '0.50', '0.70', '0.90'] # alphas
 #labels = ['50', '100', '200', '500', '750', '1000'] #es
+
+
+DPI = 80
+def runSimulator(sim, process_n, return_dict):
+
+    average_reward_history = []
+
+    # Preallocate space
+    iterations = []
+    times = []
+    rewards = []
+
+    sim.command.setSpeedReference(0.03) # 0.02
+    sim.command.toggleQlr(True)
+    sim.command.toggleLearning(True)
+    sim.command.Qlr_setTrainIterations(1800000) # 20k initial?
+
+    sim.command.step(10) # start
+
+    time = 0.0
+    iteration = 0
+    while time < 300: # 800
+        time = sim.status.getTimeStamp()
+        reward = sim.signal.getReward()
+        iterations.append(iteration)
+        times.append(time)
+        rewards.append(reward)
+
+        avg = np.mean(rewards[-2000:]) if iteration > 2000 else np.mean(rewards)
+        average_reward_history.append(avg)
+        
+        if iteration % 5000 == 0:
+            print("iteration {}, time: {}".format(iteration, time))
+        
+        sim.command.step(0.01)
+        iteration = iteration + 1
+    
+    print("iterations run:", iteration)
+
+    print("process", str(process_n), "ready!")
+    return_dict['rewards' + str(process_n)] = average_reward_history
+    return_dict['iterations' + str(process_n)] = iterations
+
+    return average_reward_history
+
+def main(i, alpha, gamma, e, return_dict):
+    sim = Ilmarinen.SandboxApi()
+    sim.command.setNoise(0.15)
+
+    if gamma:
+        sim.command.Qlr_setGamma(gamma)
+    if alpha:
+        sim.command.Qlr_setAlpha(alpha)
+    if e:
+        sim.command.Qlr_setE(e)
+    print("alpha: {}, gamma: {}, e: {}".format(alpha, gamma, e))
+
+    # Obtain data
+    data = runSimulator(sim, i, return_dict)
+    del sim # free resources
+
+    return data
 
 # Convert comma separated string to array of floats
 def getParameterValues(parameters):
