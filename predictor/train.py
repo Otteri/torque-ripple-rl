@@ -6,52 +6,69 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import config
 
-# This model tries to learn a periodical signal from provided input data
-# After learning the signal, the model can predict future values.
-# You can use generate_data.py to generate input data for the model.
+# This model tries to learn a periodical signal from provided input data.
+# After learning, the model can predict future values of similar signal.
+# Generate_data.py can be used to generate input data for the model.
 
 class Sequence(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden=51):
         super(Sequence, self).__init__()
-        self.lstm1 = nn.LSTMCell(1, 51)
-        self.lstm2 = nn.LSTMCell(51, 51)
-        self.linear = nn.Linear(51, 1)
+        self.hidden = hidden
+        self.linear1 = nn.Linear(1, hidden) # bias layer to create offset from 0-torq
+        self.lstm1 = nn.LSTMCell(hidden, hidden)
+        self.lstm2 = nn.LSTMCell(hidden, hidden)
+        self.lstm3 = nn.LSTMCell(hidden, hidden)
+        self.linear2 = nn.Linear(hidden, 1) # scaler layer (may be useless)
+        print("Using %d hidden layers..." % hidden)
 
     # NN structure follows pytorch sequence example
     def forward(self, input, future = 0):
         outputs = []
-        h_t = torch.zeros(input.size(0), 51, dtype=torch.double)
-        c_t = torch.zeros(input.size(0), 51, dtype=torch.double)
-        h_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
-        c_t2 = torch.zeros(input.size(0), 51, dtype=torch.double)
+        h_t = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+        c_t = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+        h_t2 = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+        c_t2 = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+        h_t3 = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+        c_t3 = torch.zeros(input.size(0), self.hidden, dtype=torch.double)
+
 
         for i, input_t in enumerate(input.chunk(input.size(1), dim=1)):
+            input_t = self.linear1(input_t)
             h_t, c_t = self.lstm1(input_t, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
-            output = self.linear(h_t2)
+            h_t3, c_t3 = self.lstm3(h_t2, (h_t3, c_t3))
+            output = self.linear2(h_t3)
             outputs += [output]
         for i in range(future):# if we should predict the future
+            print("output:", output)
+            print("out shape:", output.shape)
+            output = self.linear1(output)
             h_t, c_t = self.lstm1(output, (h_t, c_t))
             h_t2, c_t2 = self.lstm2(h_t, (h_t2, c_t2))
-            output = self.linear(h_t2)
+            h_t3, c_t3 = self.lstm3(h_t2, (h_t3, c_t3))
+            output = self.linear2(h_t3)
             outputs += [output]
         outputs = torch.stack(outputs, 1).squeeze(2)
         return outputs
 
 class Model(object):
     def __init__(self):
-        self.seq = Sequence()
+        self.seq = Sequence(config.hidden_layers)
         self.seq.double()
         self.criterion = nn.MSELoss()
         # use LBFGS as optimizer since we can load the whole data to train
-        self.optimizer = optim.LBFGS(self.seq.parameters(), lr=0.8)
+        self.optimizer = optim.LBFGS(self.seq.parameters(), lr=config.learning_rate)
         self.future = 1000
 
     def predict(self, test_input, test_target=None):
         with torch.no_grad(): # Do not update network when predicting
             pred = self.seq(test_input, future=self.future)
             if test_target is not None:
+                some_matrix = pred[:, :-self.future]
+                print("some_matrix:", some_matrix)
+                print("some_matrix shape:", some_matrix.size)
                 loss = self.criterion(pred[:, :-self.future], test_target)
                 print("prediction loss:", loss.item())
             y = pred.detach().numpy()
@@ -61,6 +78,8 @@ class Model(object):
         def closure():
             self.optimizer.zero_grad()
             out = self.seq(train_input)
+            #print("train_target shape:", train_target.shape)
+            #print("out shape:", out.shape)
             loss = self.criterion(out, train_target)
             print("loss:", loss.item())
             loss.backward()
@@ -83,15 +102,15 @@ def plot(input_data, future, output, iteration):
     plt.close()
 
 def main(args):
-    # Load data
+    # Load data.
     # input: x[i], target: x[i+1]
-    # One step lag makes guessing and learning possible.
+    # One step lag allows guessing and learning.
     # First vector is for testing and all others for training.
     data = torch.load("traindata.pt")
-    train_input = torch.from_numpy(data[1:, :-1])
-    train_target = torch.from_numpy(data[1:, 1:])
     test_input = torch.from_numpy(data[:1, :-1])
     test_target = torch.from_numpy(data[:1, 1:])
+    train_input = torch.from_numpy(data[1:, :-1])
+    train_target = torch.from_numpy(data[1:, 1:])
 
     # Create a new model
     model = Model()
@@ -100,13 +119,13 @@ def main(args):
     for i in range(args.steps):
         print("STEP:", i)
 
-        # 1) Let the model to learn
+        # 1) Let the model learn
         model.train(train_input, train_target)
 
         # 2) Check how model is performing
         y = model.predict(test_input, test_target)
 
-        # 3) Visualize results
+        # 3) Visualize performance
         plot(test_input, model.future, y, i)
 
 if __name__ == "__main__":
