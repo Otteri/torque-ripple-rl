@@ -12,6 +12,7 @@ import config
 from torch.autograd import Variable
 
 from enum import IntEnum
+from scipy.signal import butter, lfilter, freqz
 
 # Define enum, so it is easy to update meaning of data indices
 class Channel(IntEnum): # Channels in data block
@@ -19,7 +20,23 @@ class Channel(IntEnum): # Channels in data block
     SIGNAL1 = 1 # torque / speed
 
 # Can be from  to data length
-future = 100 # How many steps to future (shift)
+future = 10 # How many steps to future (shift)
+
+
+# Filter requirements.
+order = 1
+fs = 50.0       # sample rate, Hz
+cutoff = 2.0  # desired cutoff frequency of the filter, Hz
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
 
 # This model tries to learn a periodical signal from provided input data.
 # After learning, the model can predict future values of similar signal.
@@ -29,21 +46,8 @@ future = 100 # How many steps to future (shift)
 # 
 # Saved data: [angle, signal1]
 
-####
-# Network for 1D data:
-# self.linear1 = nn.Linear(500, 50) # bias layer to create offset from 0-torq
-# self.conv1 = nn.Conv1d(2, hidden, 5, stride=2, padding=2)
-# self.linear2 = nn.Linear(3750, 999) # scaler layer (may be useless)
-# self.linear3 = nn.Linear(10, 1) # scaler layer (may be useless)
-# --|
-    # x = F.relu(self.conv1(input))
-    # x = self.linear1(x)
-    # x = self.flatten(x)
-    # x = self.linear2(x)
-    # x = torch.transpose(x, 0, 1)
-    # x = self.linear3(x)
-    # x = torch.squeeze(x) # [999, 1] -> [999]    
-    # output = x
+
+# TODO: output 2x input, has input and the predictions after
 
 # NOTE: Currently learns to predict value
 # TODO: Rework loss. Has to compensate!
@@ -110,26 +114,31 @@ class Model(object):
     def shift(self, new_tensor, old_tensor):
         # Replace old input values with shifted signal data; old_tensor cannot be overwritten directly!
         tensor = old_tensor.clone() # keep graph
-        tensor[:, Channel.SIGNAL1, :-1] = new_tensor[:, :-1] # shift signal (new values are in new_tensor, just assign). Currently mby wrong!!!
+        tensor[:, Channel.SIGNAL1, :] = new_tensor[:, :] # shift signal (new values are in new_tensor, just assign). Currently mby wrong!!!
         tensor[:, Channel.ANGLE, :-1] = old_tensor[:, Channel.ANGLE, 1:] # shift angle. New angle values can be taken from old tensor with shift
         return tensor
 
     # In prediction, we propagate NN multiple times.
     def predict(self, test_input, test_target=None):
-        with torch.no_grad(): # Do not update network when predicting
-            out = self.seq(test_input)
-            out = self.shift(out, test_input)
-            # shift also test target
-            out = self.seq(out)
-            if test_target is not None:
-                #print("[train] out:", out.size(), "target:", test_target.size())
-                shift = test_target.size(2) - future
-                test_target_signal = test_target[:, Channel.SIGNAL1, :shift]
-                out = out[:, :shift]
-                loss = self.criterion(out, test_target_signal) # This makes no sense
-                print("prediction loss:", loss.item())
-            y = out.detach().numpy()
-        return y
+        if future > 0:
+            with torch.no_grad(): # Do not update network when predicting
+                for i in range(0, future-1):
+                    print("shift:", i)
+                    out = self.seq(test_input)
+                    out = self.shift(out, test_input)
+                out = self.seq(out) # Do no shigt on last forward
+                if test_target is not None:
+                    #print("[train] out:", out.size(), "target:", test_target.size())
+                    shift = test_target.size(2) - future
+                    test_target_signal = test_target[:, Channel.SIGNAL1, :shift]
+                    out = out[:, :shift]
+                    loss = self.criterion(out, test_target_signal) # This makes no sense
+                    print("prediction loss:", loss.item())
+                y = out.detach().numpy()
+                print("y:", y.shape)
+            return y #[:, 0] # return the 'new' prediction value
+        else:
+            return test_input
 
     def train(self, train_input, train_target):
         def closure():
@@ -153,17 +162,23 @@ def plot(input_data, future, output, iteration):
     print("output_data shape:", output.shape)
     #print("tweaked output shape:", output[0, 0, -999:])
 
-    input_length = input_data.size(1)
+    input_length = input_data.size(2)
     plt.figure(figsize=(15,7))
     plt.xlabel(r"Angle ($\theta_m$)", fontsize=18, labelpad=5)
     plt.ylabel("Torque [pu.]", fontsize=18, labelpad=5)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
-    def draw(yi, color):
-        x = np.arange(999) #input_length
-        plt.plot(x, yi[:], color, linewidth = 2.0)
-        plt.plot(np.arange(999, 999 + 999), yi[:], color + ':', linewidth = 2.0)
-    draw(output[0, -999:], 'b') # pick signal from first batch
+    # def draw(yi, color):
+    #     x = np.arange(input_length) #input_length
+    #     #plt.plot(x, yi[:input_length], color, linewidth = 2.0)
+    #     #plt.plot(np.arange(input_length, input_length + future), yi[input_length], color + ':', linewidth = 2.0)
+    #draw(output[0, :future], 'b') # pick signal from first batch
+    x1 = np.arange(input_length) #input_length
+
+    x2 = np.arange(input_length, input_length + output.shape[1])
+    plt.plot(x1, input_data[0, 1, :])
+    plt.plot(x2, output[0, :])
+
     plt.savefig("predictions/prediction%d.svg" % iteration)
     plt.close()
 
@@ -209,10 +224,6 @@ def main(args):
     print("train_input:", train_input.size())
     print("train target", train_target.size())
     
-    # Should be same:
-    #print("test input", test_input[:,:,1])
-    #print("test target", test_target[:,:,0])
-    #breakpoint()
 
     # Create a new model
     model = Model()
@@ -232,8 +243,21 @@ def main(args):
 
 
         # 3) Visualize performance
-        #plot(test_input, model.future, y, i)
+        plot(test_input, model.future, y, i)
         #plot2(y, i)
+
+    # We know that pulsation pattern should be relatively smooth.
+    # Filter out the noise with low pass filter. This is better to do manually,
+    # Since we already know what we want.
+    y =  y[0, :] # pick one from block
+    y = butter_lowpass_filter(y, cutoff, fs, order)
+
+    x1 = np.arange(len(y)) #input_length
+    plt.plot(x1, y)
+    plt.savefig("predictions/filetered.svg")
+
+    # Save result
+    torch.save(model.seq.state_dict(), "predictions/compensator.mdl")
 
 if __name__ == "__main__":
     
