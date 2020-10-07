@@ -66,9 +66,6 @@ class Model(object):
         with torch.no_grad(): # Do not update network when predicting
             pred = self.seq(test_input, future=self.future)
             if test_target is not None:
-                some_matrix = pred[:, :-self.future]
-                print("some_matrix:", some_matrix)
-                print("some_matrix shape:", some_matrix.size)
                 loss = self.criterion(pred[:, :-self.future], test_target)
                 print("prediction loss:", loss.item())
             y = pred.detach().numpy()

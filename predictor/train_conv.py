@@ -11,6 +11,16 @@ import config
 
 from torch.autograd import Variable
 
+from enum import IntEnum
+
+# Define enum, so it is easy to update meaning of data indices
+class Channel(IntEnum): # Channels in data block
+    ANGLE = 0
+    SIGNAL1 = 1 # torque / speed
+
+# Can be from  to data length
+future = 100 # How many steps to future (shift)
+
 # This model tries to learn a periodical signal from provided input data.
 # After learning, the model can predict future values of similar signal.
 # Generate_data.py can be used to generate input data for the model.
@@ -63,6 +73,29 @@ class Sequence(nn.Module):
         # Could also do future forwarding + shifting here....
         return output
 
+def plot2(data, filename):
+    try:
+        data = data.detach().numpy()
+    except:
+        pass # if already numpy data, don't detach()
+
+    plt.figure(figsize=(15,7))
+    x = np.arange(data.shape[1])
+    y = data[0, :] # take first signal vec
+    plt.plot(x, y, 'b', linewidth=2.0)
+    plt.savefig(filename)
+    plt.close()
+
+# Plots input data
+def plot3(data, filename):
+    plt.figure(figsize=(15,7))
+    x = np.arange(data.shape[2])
+    y = data[0, 1, :] # take first signal vec
+    plt.plot(x, y, 'b', linewidth=2.0)
+    plt.savefig(filename)
+    plt.close()
+
+
 class Model(object):
     def __init__(self):
         self.seq = Sequence(75) #config.hidden_layers = N or repetitions
@@ -74,43 +107,26 @@ class Model(object):
 
     # One step forward shift for signals
     # This should be tested...
-    def shift2(self, new_tensor, old_tensor):
-        #tensor = old_tensor.clone()
-        print("old_tensor:", old_tensor.size())
-        print("new_tensor:", new_tensor.size())
-        # Shift signal
-        old_tensor[:, 1, :-1] = new_tensor[:, :-1] # shift signal (new values are in new_tensor, just assign). Currently mby wrong!!!
-        old_tensor[:, 0, :-1] = old_tensor[:, 0, 1:] # shift angle. New angle values can be taken from old tensor with shift
-        # Time shifted and no new data...
-        #old_tensor[:-1, 0, :-1] = None
-        #old_tensor[:-1, 1, :-1] = None
-        old_tensor[:, :, :-1] = 0.0
-
-        return old_tensor
-
     def shift(self, new_tensor, old_tensor):
-        # TODO: Could also overwrite old_tensor with new data...
-        tensor = torch.empty(10, 2, 1000, dtype=torch.double)
-
-        # Shift channel signals
-        tensor[:, 1, :-2] = new_tensor[:, :-1] # shift signal (new values are in new_tensor, just assign). Currently mby wrong!!!
-        tensor[:, 0, :-2] = old_tensor[:, 0, 1:] # shift angle. New angle values can be taken from old tensor with shift
-        
-        # We are not getting new data, thus set tail to zero after shift
-        tensor[:, 1, :-1] = 0 # Signal 
-        tensor[:, 0, :-1] = 0 # Angle
+        # Replace old input values with shifted signal data; old_tensor cannot be overwritten directly!
+        tensor = old_tensor.clone() # keep graph
+        tensor[:, Channel.SIGNAL1, :-1] = new_tensor[:, :-1] # shift signal (new values are in new_tensor, just assign). Currently mby wrong!!!
+        tensor[:, Channel.ANGLE, :-1] = old_tensor[:, Channel.ANGLE, 1:] # shift angle. New angle values can be taken from old tensor with shift
         return tensor
-
 
     # In prediction, we propagate NN multiple times.
     def predict(self, test_input, test_target=None):
         with torch.no_grad(): # Do not update network when predicting
             out = self.seq(test_input)
             out = self.shift(out, test_input)
+            # shift also test target
             out = self.seq(out)
             if test_target is not None:
                 #print("[train] out:", out.size(), "target:", test_target.size())
-                loss = self.criterion(out, test_target) # This makes no sense
+                shift = test_target.size(2) - future
+                test_target_signal = test_target[:, Channel.SIGNAL1, :shift]
+                out = out[:, :shift]
+                loss = self.criterion(out, test_target_signal) # This makes no sense
                 print("prediction loss:", loss.item())
             y = out.detach().numpy()
         return y
@@ -120,7 +136,13 @@ class Model(object):
             self.optimizer.zero_grad()
             out = self.seq(train_input)
             #print("[train] out:", out.size(), "target:", train_target.size())
-            loss = self.criterion(out, train_target)
+            shift = train_target.size(2) - future
+            train_target_signal = train_target[:, Channel.SIGNAL1, :shift]
+            out = out[:, :shift]
+            loss = self.criterion(out, train_target_signal) # flip: compensation loss
+            #loss = self.criterion(out, train_target) # learn to predict loss
+            plot2(out, "predictions/train_prediction.svg")
+
             print("loss:", loss.item())
             loss.backward()
             return loss
@@ -145,6 +167,28 @@ def plot(input_data, future, output, iteration):
     plt.savefig("predictions/prediction%d.svg" % iteration)
     plt.close()
 
+
+# expects: ten batch 
+def test(input, target):
+    print("Input shape:", input.shape)
+    print("Target shape:", target.shape)
+
+    # if(input.shape == torch.Size(10, 2, 999)):
+    #     print("Shape is correct!")
+
+
+    # Check signal first value
+    assert (target[0, 1, 0] == input[0, 1, 1]), "First item should be same"
+
+    assert (target[9, 1, 0] == input[9, 1, 1]), "First item should be same"
+
+    # Check signal last value
+    assert (target[0, 1, -2] == input[0, 1, -1]), "Last item should be same"
+
+    assert (target[9, 1, -2] == input[9, 1, -1]), "Last item should be same"
+
+
+
 def main(args):
     # Load data.
     # input: x[i], target: x[i+1] in 1d-plane
@@ -155,9 +199,12 @@ def main(args):
     train_data = torch.load(train_data_filename)
     test_data = torch.load(test_data_filename)
     test_input = torch.from_numpy(test_data[..., :-1] )
-    test_target = torch.from_numpy(test_data[:, 1, 1:]) # match only signal values (ignore angle)
+    test_target = torch.from_numpy(test_data[..., 1:]) # match only signal values (ignore angle)
     train_input = torch.from_numpy(train_data[..., :-1])
-    train_target = torch.from_numpy(train_data[:, 1, 1:])
+    train_target = torch.from_numpy(train_data[..., 1:])
+
+    test(train_input, train_target)
+    test(test_input, test_target)
 
     print("train_input:", train_input.size())
     print("train target", train_target.size())
@@ -176,12 +223,17 @@ def main(args):
 
         # 1) Let the model learn
         model.train(train_input, train_target)
+        plot3(train_input, "predictions/train_input.svg")
 
         # 2) Check how model is performing
         y = model.predict(test_input, test_target)
+        plot2(y, "predictions/test_prediction.svg")
+        plot3(test_input, "predictions/test_input.svg")
+
 
         # 3) Visualize performance
-        plot(test_input, model.future, y, i)
+        #plot(test_input, model.future, y, i)
+        #plot2(y, i)
 
 if __name__ == "__main__":
     
