@@ -7,6 +7,7 @@ import config
 
 L = config.L
 N = config.N
+step_size = config.step_size
 repetitions = config.repetitions
 harmonics = config.harmonics
 PI2 = 2*np.pi
@@ -25,7 +26,7 @@ def recordRotations(rotations=1):
     rotations = 1
     signal_data = np.empty(L, 'float64')
     rotation_data = np.empty(L, 'float64')
-    step_size = PI2 / L # divide one revolution to L steps (theoretical value)
+    #step_size = PI2 / L # divide one revolution to L steps (theoretical value)
     requested_sample_amount = L
     current_sample_num = 0
 

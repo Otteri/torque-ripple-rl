@@ -14,6 +14,9 @@ from torch.autograd import Variable
 from enum import IntEnum
 from scipy.signal import butter, lfilter, freqz
 
+# In loss, use -train_target_signal for compensating signal,
+# Use positive for making clone
+
 # Define enum, so it is easy to update meaning of data indices
 class Channel(IntEnum): # Channels in data block
     ANGLE = 0
@@ -37,6 +40,11 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
+
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
 
 # This model tries to learn a periodical signal from provided input data.
 # After learning, the model can predict future values of similar signal.
@@ -131,11 +139,12 @@ class Model(object):
                     #print("[train] out:", out.size(), "target:", test_target.size())
                     shift = test_target.size(2) - future
                     test_target_signal = test_target[:, Channel.SIGNAL1, :shift]
-                    out = out[:, :shift]
-                    loss = self.criterion(out, test_target_signal) # This makes no sense
+                    loss = self.criterion(out[:, :shift], test_target_signal) # This makes no sense
                     print("prediction loss:", loss.item())
+    
+                out = self.shift(out, test_input) # Possibly extra forwad and should be removed, just to get dimensions right
                 y = out.detach().numpy()
-                print("y:", y.shape)
+            print("y:", y.shape)
             return y #[:, 0] # return the 'new' prediction value
         else:
             return test_input
@@ -238,26 +247,31 @@ def main(args):
 
         # 2) Check how model is performing
         y = model.predict(test_input, test_target)
-        plot2(y, "predictions/test_prediction.svg")
+        print("Target shape:", y[:, 1, :].shape)
+
+        plot2(y[:, 1, :], "predictions/test_prediction.svg")
         plot3(test_input, "predictions/test_input.svg")
 
 
         # 3) Visualize performance
-        plot(test_input, model.future, y, i)
+        plot(test_input, model.future, y[:, 1, :], i)
         #plot2(y, i)
 
     # We know that pulsation pattern should be relatively smooth.
     # Filter out the noise with low pass filter. This is better to do manually,
     # Since we already know what we want.
-    y =  y[0, :] # pick one from block
-    y = butter_lowpass_filter(y, cutoff, fs, order)
+    angle = moving_average(y[0, 0, :], n=1)
+    signal = moving_average(y[0, 1, :], n=1)
+    #y = butter_lowpass_filter(y, cutoff, fs, order)
 
-    x1 = np.arange(len(y)) #input_length
-    plt.plot(x1, y)
+    plt.plot(np.arange(len(signal)), signal, color='green')
+    plt.plot(np.arange(len(signal)), angle, color='blue')
+
     plt.savefig("predictions/filetered.svg")
 
     # Save result
     torch.save(model.seq.state_dict(), "predictions/compensator.mdl")
+    np.savetxt("compensation-pattern.csv", np.array([angle, signal]), delimiter=",")
 
 if __name__ == "__main__":
     

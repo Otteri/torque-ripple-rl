@@ -20,6 +20,7 @@ harmonics = {             # Signal shape.
 
 noise = 0.04              # Makes the signal jagged. 0.02 = 2% error.
 
+step_size = 0.001        # Set step size: PI2 / L for one data revolution
 ###################
 #    Plotting     #
 ###################
