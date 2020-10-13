@@ -4,8 +4,12 @@ import numpy as np
 import torch
 from numpy import genfromtxt
 
+import config
+from datagenerator import plotRecordedData
+
+PI2 = 2*np.pi
 DPI = 200 # plot resolution
-SHIFT = 25
+SHIFT = 0 #25
 
 def find_nearest_idx(array, value):
     array = np.asarray(array)
@@ -75,7 +79,7 @@ def lineChart(time, data):
     ax1.plot(time, data[2], label='Compensation torque', linewidth=0.8, color='green')
     ax1.plot(time, data[0], label='Pulsating torque', linewidth=0.8, color='blue')
     ax1.plot(time, data[1], label='Total torque (filtered)', linewidth=0.8, color='red')
-    ax1.plot(time, data[3], label='Mechanical rotor angle', linewidth=0.8, color='blue')
+    ax1.plot(time, data[3], label='Mechanical rotor angle', linewidth=0.8, color='magenta')
     ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax1.margins(0, .05)
     ax1.grid(True)
@@ -87,10 +91,73 @@ def lineChart(time, data):
 
     plt.show(block=True)
 
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+def runPulsationModel(compensation_pattern):
+    def sample(angle):
+        harmonics = config.harmonics
+        torque = 0.0
+        for harmonic_n in harmonics:
+            magnitue = harmonics[harmonic_n]
+            torque += magnitue * np.cos(harmonic_n * angle)
+        return torque
+
+    rotations = 1
+    L = config.L
+    N = config.N
+    step_size = config.step_size
+    signal_data = np.empty(L, 'float64')
+    rotation_data = np.empty(L, 'float64')
+    requested_sample_amount = L
+    current_sample_num = 0
+    compensation_prev = 0
+    compensation_prev_prev = 0
+
+    time = np.zeros(L)
+    data = np.zeros((4, L), dtype=float)
+
+    # Do one approximately full mechanical rotation
+    # Might not be precisely full rotation, due to added noise
+    rotor_angle = np.random.uniform(0, PI2) # Start from random angle
+    while(current_sample_num < requested_sample_amount):
+        # moving average filter, seconod order
+        compensation = (1.0/3) * (getCompensationValue(compensation_pattern, rotor_angle) + compensation_prev + compensation_prev_prev)
+        compensation_prev = compensation
+        compensation_prev_prev = compensation_prev
+
+        rotation_data[current_sample_num] = rotor_angle
+        signal_data[current_sample_num] = sample(rotor_angle) + compensation
+
+        time[current_sample_num] = time[current_sample_num -1] + 0.001
+        data[3][current_sample_num] = rotor_angle
+        data[0][current_sample_num] = sample(rotor_angle)
+        data[2][current_sample_num] = compensation
+        data[1][current_sample_num] =  sample(rotor_angle) + compensation # actual torque
+
+        noise = np.random.uniform(-config.noise, config.noise) # simulate encoder noise (%)
+        rotor_angle += step_size + noise
+        current_sample_num += 1
+
+        # Make angle to stay within limits: [0, PI2]
+        if (rotor_angle >= PI2):
+            rotor_angle = 0
+
+    return time, data
+
+# def moving_average(a, n=3) :
+#     ret = np.cumsum(a, dtype=float)
+#     ret[n:] = ret[n:] - ret[:-n]
+#     return ret[n - 1:] / n
+
 
 def main():
+    use_sim = False
+
     # Obtain data
-    compensation_pattern = genfromtxt('predictor/compensation-pattern.csv', delimiter=',')
+    compensation_pattern = genfromtxt('predictions/compensation-pattern.csv', delimiter=',')
 
     fig, ax1 = plt.subplots(1, figsize=(8,3), dpi=DPI)
     x = np.arange(compensation_pattern.shape[1])    
@@ -98,12 +165,15 @@ def main():
     ax1.plot(x, compensation_pattern[1, :], label='Compensation pattern', linewidth=0.8, color='blue')
     plt.show(block=True)
 
-    time, data = runSimulator(compensation_pattern)
+    if use_sim:
+        time, data = runSimulator(compensation_pattern)
+    else:
+        #data = np.empty((1, 2, config.L), 'float64')
+        time, data = runPulsationModel(compensation_pattern)
 
-    # Plot the data
     lineChart(time, data)
 
-    # Wait user to close the plots
+    # Wait user to close the plot
     plt.show(block=True)
 
 if __name__ == '__main__':
