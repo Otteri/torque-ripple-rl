@@ -75,7 +75,7 @@ def lineChart(time, data):
     
     ax1.plot(time, data[2], label='Compensation torque', linewidth=0.8, color='green')
     ax1.plot(time, data[0], label='Pulsating torque', linewidth=0.8, color='blue')
-    ax1.plot(time, data[1], label='Total torque (filtered)', linewidth=0.8, color='red')
+    ax1.plot(time, data[1], label='Actual torque', linewidth=0.8, color='red')
     ax1.plot(time, data[3], label='Mechanical rotor angle', linewidth=0.8, color='blue')
     ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax1.margins(0, .05)

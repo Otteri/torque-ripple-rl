@@ -78,7 +78,7 @@ def lineChart(time, data):
     
     ax1.plot(time, data[2], label='Compensation torque', linewidth=0.8, color='green')
     ax1.plot(time, data[0], label='Pulsating torque', linewidth=0.8, color='blue')
-    ax1.plot(time, data[1], label='Total torque (filtered)', linewidth=0.8, color='red')
+    ax1.plot(time, data[1], label='Actual torque', linewidth=0.8, color='red')
     ax1.plot(time, data[3], label='Mechanical rotor angle', linewidth=0.8, color='magenta')
     ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax1.margins(0, .05)
@@ -113,8 +113,10 @@ def runPulsationModel(compensation_pattern):
     rotation_data = np.empty(L, 'float64')
     requested_sample_amount = L
     current_sample_num = 0
+    compensation = 0
     compensation_prev = 0
     compensation_prev_prev = 0
+    compensate = True
 
     time = np.zeros(L)
     data = np.zeros((4, L), dtype=float)
@@ -124,9 +126,11 @@ def runPulsationModel(compensation_pattern):
     rotor_angle = np.random.uniform(0, PI2) # Start from random angle
     while(current_sample_num < requested_sample_amount):
         # moving average filter, seconod order
-        compensation = (1.0/3) * (getCompensationValue(compensation_pattern, rotor_angle) + compensation_prev + compensation_prev_prev)
-        compensation_prev = compensation
-        compensation_prev_prev = compensation_prev
+
+        if compensate:
+            compensation = (1.0/3) * (getCompensationValue(compensation_pattern, rotor_angle) + compensation_prev + compensation_prev_prev)
+            compensation_prev = compensation
+            compensation_prev_prev = compensation_prev
 
         rotation_data[current_sample_num] = rotor_angle
         signal_data[current_sample_num] = sample(rotor_angle) + compensation

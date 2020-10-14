@@ -9,29 +9,27 @@ import matplotlib
 import matplotlib.pyplot as plt
 import config
 from enum import IntEnum
-#from scipy.signal import butter, lfilter, freqz
 
 from datagenerator import recordRotations, L, N, plotRecordedData
 
+# TODO train using speed signal
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--steps", type=int, default=15, help="steps to run")
-parser.add_argument("--debug", type=bool, default=False, help="Use debug mode")
+parser.add_argument("--debug", default=False, action="store_true", help="Use debug mode")
+parser.add_argument("--invert", default=False, action="store_true", help="Invert learning outcome")
 parser.add_argument("--use_sim", type=bool, default=False, help="Use simulator for data generation")
 args = parser.parse_args()
 
 if args.use_sim:
     from runsim import collectData
 
-
-# In loss, use -train_target_signal for compensating signal,
-# Use positive for making clone
-
 # Define enum, so it is easy to update meaning of data indices
 class Channel(IntEnum): # Channels in data block
     ANGLE = 0
     SIGNAL1 = 1 # torque / speed
 
+ave_n = 5
 
 def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
@@ -54,9 +52,10 @@ class Sequence(nn.Module):
     def __init__(self, hidden=32):
         super(Sequence, self).__init__()
         self.hidden = hidden
-        self.linear1 = nn.Linear(500, 50)
-        self.linear2 = nn.Linear(3750, 999)
-        self.conv1 = nn.Conv1d(2, hidden, 5, stride=2, padding=2)
+        self.linear1 = nn.Linear(166, 40)
+        self.linear2 = nn.Linear(3000, 999)
+        self.conv1 = nn.Conv1d(2, hidden, 3, stride=2, padding=2)
+        self.avg_pool = nn.AvgPool1d(5, stride=3)
         self.flatten = Flatten()
         self.batchnorm = nn.BatchNorm1d(75)
 
@@ -64,37 +63,12 @@ class Sequence(nn.Module):
 
     # NN structure follows pytorch sequence example
     def forward(self, input):
-        x = F.relu(self.conv1(input))
+        x = self.avg_pool(F.relu(self.conv1(input)))
         x = self.batchnorm(x)
         x = self.linear1(x)
         x = self.flatten(x)
-        x = self.linear2(x) # [10, 999]
-        output = x
-
-        return output
-
-def plot2(data, filename):
-    try:
-        data = data.detach().numpy()
-    except:
-        pass # if already numpy data, don't detach()
-
-    plt.figure(figsize=(15,7))
-    x = np.arange(data.shape[1])
-    y = data[0, :] # take first signal vec
-    plt.plot(x, y, 'b', linewidth=2.0)
-    plt.savefig(filename)
-    plt.close()
-
-# Plots input data
-def plot3(data, filename):
-    plt.figure(figsize=(15,7))
-    x = np.arange(data.shape[2])
-    y = data[0, 1, :] # take first signal vec
-    plt.plot(x, y, 'b', linewidth=2.0)
-    plt.savefig(filename)
-    plt.close()
-
+        x = self.linear2(x)
+        return x
 
 class Model(object):
     def __init__(self):
@@ -105,7 +79,6 @@ class Model(object):
         self.optimizer = optim.LBFGS(self.seq.parameters(), lr=config.learning_rate)
 
     # One step forward shift for signals
-    # This should be tested...
     def shift(self, new_tensor, old_tensor):
         # Replace old input values with shifted signal data; old_tensor cannot be overwritten directly!
         tensor = old_tensor.clone() # keep graph
@@ -113,38 +86,55 @@ class Model(object):
         tensor[:, Channel.ANGLE, :-1] = old_tensor[:, Channel.ANGLE, 1:] # shift one forward
         return tensor
 
+    # Avg-filter input signal, since it can be quite noisy and we don't want to try learn white noise.
+    # Add padding by copying first few values in the beginning, so the data vector length does not change.
+    def preprocessBatch(self, input_data, n=1):
+        filtered_data = input_data.clone()
+        for i in range(0, input_data.size(1)):
+            padded_input_data = torch.cat((input_data[i, Channel.SIGNAL1, 0:(n-1)], input_data[i, Channel.SIGNAL1, :]))
+            filtered_data[i, Channel.SIGNAL1, :] = moving_average(padded_input_data, n=n)
+        return filtered_data
+
     # In prediction, we propagate NN ONCE.
     def predict(self, test_input, test_target=None):
             with torch.no_grad(): # Do not update network when predicting
-                out = self.seq(test_input)
+                filtered_input = self.preprocessBatch(test_input, n=ave_n)
+                filtered_target = self.preprocessBatch(test_target, n=ave_n)
+                out = self.seq(filtered_input)
                 if test_target is not None:
                     shift = test_target.size(2)
-                    test_target_signal = test_target[:, Channel.SIGNAL1, :shift]
-                    loss = self.criterion(out[:, :shift], -test_target_signal) # This makes no sense
+                    test_target_signal = filtered_target[:, Channel.SIGNAL1, :shift]
+                    if args.invert:
+                        loss = self.criterion(out[:, :shift], test_target_signal) # Easier to compare input
+                    else:
+                        loss = self.criterion(out[:, :shift], -test_target_signal) # Learn compensation signal
+
                     print("prediction loss:", loss.item())
-                out = self.shift(out, test_input) # Combine angle and signal again
+                out = self.shift(out, test_input) # Combine angle and signal again; use original input data
                 y = out.detach().numpy()
-            #print("y:", y.shape)
-            return y #[:, 0] # return the 'new' prediction value
+            return y, filtered_input #[:, 0] # return the 'new' prediction value
 
 
     def train(self, train_input, train_target):
         def closure():
             self.optimizer.zero_grad()
-            out = self.seq(train_input)
-            #print("[train] out:", out.size(), "target:", train_target.size())
+            filtered_input = self.preprocessBatch(train_input, n=ave_n)
+            filtered_target = self.preprocessBatch(train_target, n=ave_n)
+            out = self.seq(filtered_input)
             shift = train_target.size(2)
-            train_target_signal = train_target[:, Channel.SIGNAL1, :shift]
+            train_target_signal = filtered_target[:, Channel.SIGNAL1, :shift]
             out = out[:, :shift]
-            loss = self.criterion(out, -train_target_signal) # flip to get compensation loss. (-train)
-            plot2(out, "predictions/train_prediction.svg")
+            if args.invert:
+                loss = self.criterion(out, train_target_signal)
+            else:
+                loss = self.criterion(out, -train_target_signal)
 
             print("loss:", loss.item())
             loss.backward()
             return loss
         self.optimizer.step(closure)
 
-def plot(input_data, output, iteration):
+def plot(input_data, filtered_input, output, iteration):
     print("input_data shape:", input_data.shape)
     print("output_data shape:", output.shape)
     #print("tweaked output shape:", output[0, 0, -999:])
@@ -157,17 +147,19 @@ def plot(input_data, output, iteration):
     plt.yticks(fontsize=18)
     x1 = np.arange(input_length) #input_length
 
-    x2 = np.arange(input_length, input_length + output.shape[1])
-    plt.plot(x1, input_data[0, 1, :])
-    plt.plot(x2, output[0, :])
+    x2 = np.arange(input_length, input_length + output.shape[1]) # Use to plot next
+    plt.plot(x1, input_data[0, 1, :], "-", color='b', label="input")
+    plt.plot(x1, filtered_input[0, 1, :], '--', color='r', label="filtered input")
+    plt.plot(x1, output[0, :], '-', color='green', label="learning output")
+    plt.legend()
 
     plt.savefig("predictions/prediction%d.svg" % iteration)
     plt.close()
 
-def getDataBatch():
-    # Gather a data batch with N-rows
 
-    # batch_num x signals_num x signal_len
+# Gather a data batch with N-rows
+# batch_num x signals_num x signal_len
+def getDataBatch():
     data = np.empty((N, 2, L), 'float64')
     print("data shape:", data.shape)
 
@@ -186,6 +178,7 @@ def getDataBatch():
 
 def main(args):
 
+    # Configure
     if not args.debug:
         matplotlib.use("Agg")
 
@@ -209,16 +202,12 @@ def main(args):
 
         # 1) Let the model learn
         model.train(train_input, train_target)
-        plot3(train_input, "predictions/train_input.svg")
 
         # 2) Check how model is performing
-        y = model.predict(test_input, test_target)
-        #plot2(y[:, 1, :], "predictions/test_prediction.svg")
-        #plot3(test_input, "predictions/test_input.svg")
+        y, filtered_input = model.predict(test_input, test_target)
 
         # 3) Visualize performance
-        plot(test_input, y[:, 1, :], i)
-        #plot2(y, i)
+        plot(test_input, filtered_input, y[:, 1, :], i)
 
 
     # We know that pulsation pattern should be relatively smooth.
