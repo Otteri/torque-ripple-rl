@@ -85,7 +85,7 @@ def lineChart(time, data):
     ax1.grid(True)
 
     handles, labels = ax1.get_legend_handles_labels()
-    fig.legend(handles, labels, loc = 'upper center', ncol=3)
+    fig.legend(handles, labels, loc = 'upper center', ncol=4, prop={'size': 8})
     fig.text(0.5, 0.04, 'Time [s]', ha='center')
     fig.text(0.02, 0.5, 'Amplitude [pu.]', va='center', rotation='vertical')
 
@@ -150,11 +150,6 @@ def runPulsationModel(compensation_pattern):
             rotor_angle = 0
 
     return time, data
-
-# def moving_average(a, n=3) :
-#     ret = np.cumsum(a, dtype=float)
-#     ret[n:] = ret[n:] - ret[:-n]
-#     return ret[n - 1:] / n
 
 
 def main():
