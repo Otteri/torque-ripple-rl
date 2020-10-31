@@ -1,10 +1,13 @@
 import sys
 import time
 import argparse
-from python_interface import Ilmarinen
 import torch.multiprocessing as mp
 import matplotlib.pyplot as plt
 import numpy as np
+import gym
+import envs
+
+# Example call $ python multirunner.py --gammas 0.2,0.4,0.6,0.8,0.87,0.95
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--episodes", "-ep", type=int, default=500, help="Number of episodes to train for")
@@ -14,19 +17,18 @@ parser.add_argument("--load", type=str, default=None, help="Load model and conti
 parser.add_argument("--es", type=str, default=None, help="v1,v2,v3...")
 parser.add_argument("--gammas", type=str, default=None, help="v1,v2,v3...")
 parser.add_argument("--alphas", type=str, default=None,  help="v1,v2,v3...")
-# Example call $ python multirunner.py --gammas 0.2,0.4,0.6,0.8,0.87,0.95
 
 num_processes = 6
-color1 = '#1d9bf0'
-color2 = '#43ccd9'
-color3 = '#a0eb9f'
-color4 = '#e0ce75'
-color5 = '#fa9e55'
-color6 = '#ff4926'
+color1 = "#1d9bf0"
+color2 = "#43ccd9"
+color3 = "#a0eb9f"
+color4 = "#e0ce75"
+color5 = "#fa9e55"
+color6 = "#ff4926"
 colors = [color1, color2, color3, color4, color5, color6]
-labels = ['0.20', '0.40', '0.60', '0.80', '0.87', '0.95'] # gammas
-#labels = ['0.10', '0.20', '0.30', '0.50', '0.70', '0.90'] # alphas
-#labels = ['50', '100', '200', '500', '750', '1000'] #es
+labels = ["0.20", "0.40", "0.60", "0.80", "0.87", "0.95"] # gammas
+#labels = ["0.10", "0.20", "0.30", "0.50", "0.70", "0.90"] # alphas
+#labels = ["50", "100", "200", "500", "750", "1000"] #es
 
 
 DPI = 80
@@ -39,16 +41,15 @@ def runSimulator(sim, process_n, return_dict):
     times = []
     rewards = []
 
-    sim.command.setSpeedReference(0.03) # 0.02
+    sim.command.setSpeedReference(0.03) # [pu].
     sim.command.toggleQlr(True)
     sim.command.toggleLearning(True)
-    sim.command.Qlr_setTrainIterations(1800000) # 20k initial?
-
-    sim.command.step(10) # start
+    sim.command.Qlr_setTrainIterations(1800000) # some big number
+    sim.command.step(10)
 
     time = 0.0
     iteration = 0
-    while time < 300: # 800
+    while time < 300:
         time = sim.status.getTimeStamp()
         reward = sim.signal.getReward()
         iterations.append(iteration)
@@ -67,13 +68,14 @@ def runSimulator(sim, process_n, return_dict):
     print("iterations run:", iteration)
 
     print("process", str(process_n), "ready!")
-    return_dict['rewards' + str(process_n)] = average_reward_history
-    return_dict['iterations' + str(process_n)] = iterations
+    return_dict["rewards" + str(process_n)] = average_reward_history
+    return_dict["iterations" + str(process_n)] = iterations
 
     return average_reward_history
 
 def main(i, alpha, gamma, e, return_dict):
-    sim = Ilmarinen.SandboxApi()
+    Ilmarinen = gym.make("IlmarinenRawQlr-v0")
+    sim = Ilmarinen.api
     sim.command.setNoise(0.15)
 
     if gamma:
@@ -136,26 +138,26 @@ def run(args):
         y = y[350:]
         plt.plot(x, y, label=labels[i], linewidth=0.8, color=colors[i])
 
-    plt.legend(title='Gamma ($\gamma$)', loc='lower right', fancybox=True) # for gammas
-    #plt.legend(title='$\\alpha$', loc='lower right', fancybox=True) # for alphas
-    #plt.legend(title='$k_\epsilon$', loc='lower right', fancybox=True) # for alphas
+    plt.legend(title="Gamma ($\gamma$)", loc="lower right", fancybox=True) # for gammas
+    #plt.legend(title="$\\alpha$", loc="lower right", fancybox=True) # for alphas
+    #plt.legend(title="$k_\epsilon$", loc="lower right", fancybox=True) # for alphas
     plt.ylabel("Reward", fontsize=12)
     plt.xlabel("Rotation no.", fontsize=12)
 
     # harcoded for 60 rpm, fs = 0.01, 300s data
     # 300s * 60 rpm = 18000 rev in total.
-    iterations = return_dict['iterations0']
+    iterations = return_dict["iterations0"]
     ticks = iterations[::100] # 0.01 -> 1s
     print("iterations:", len(iterations))
     ticks = np.arange(0, 18000, step=1800)
     plt.xticks(iterations[::2897], ticks)
-    ax.grid(color='white')
-    ax.set_facecolor('lightblue')
+    ax.grid(color="white")
+    ax.set_facecolor("lightblue")
     ax.patch.set_alpha(.20)
 
     plt.grid(True)
     plt.show(block=True)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parser.parse_args()
     run(args)

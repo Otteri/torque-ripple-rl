@@ -1,5 +1,8 @@
 import numpy as np
 
+# Creates a CSV or a header file from the .npy grid data
+# Serialized grid can used for compensation or debugging
+
 def loadGrid(grid_name):
     data = np.load(grid_name)
     total = 0.0

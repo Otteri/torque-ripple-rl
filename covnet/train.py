@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import config
 from enum import IntEnum
 
-from datagenerator import recordRotations, L, N, plotRecordedData
+from datagenerator import recordRotations, L, N
 
 from model import Model # SignalCovNet
 
@@ -24,9 +24,10 @@ from model import Model # SignalCovNet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--steps", type=int, default=15, help="steps to run")
-parser.add_argument("--debug", default=False, action="store_true", help="Use debug mode")
+parser.add_argument("--show_input", default=False, action="store_true", help="Visualize input training data")
 parser.add_argument("--invert", default=False, action="store_true", help="Invert learning outcome")
-parser.add_argument("--use_sim", type=bool, default=False, help="Use simulator for data generation")
+parser.add_argument("--use_sim", action='store_true', default=None, help="Use simulator for data generation")
+
 args = parser.parse_args()
 
 if args.use_sim:
@@ -36,7 +37,7 @@ ave_n = 5
 
 def configure():
     # Configure
-    if not args.debug:
+    if not args.show_input:
         matplotlib.use("Agg")
 
 # Define enum, so it is easy to update meaning of data indices
@@ -64,7 +65,7 @@ def plot(input_data, filtered_input, output, iteration):
     plt.plot(x, output[0, :], '-', color='green', label="learning output")
     plt.legend()
 
-    plt.savefig("predictions/prediction%d.svg" % iteration)
+    plt.savefig("predictions/prediction_%d.pdf" % (iteration+1))
     plt.close()
 
 # Avg-filter input signal, since it can be quite noisy and we don't want to try learn white noise.
@@ -83,16 +84,14 @@ def getDataBatch():
     data = np.empty((N, 2, L), 'float64')
     print("data shape:", data.shape)
 
-    for i in range(0, N):
-        print("Collecting sample: {}/{}".format((i+1), N))
-        if args.use_sim:
-            data[i, :, :] = collectData(rotations=config.repetitions)
-        else:    
-            data[i, :, :] = recordRotations(rotations=config.repetitions)
-        
-    if args.debug:
-        plotRecordedData(data)
+    if args.use_sim:
 
+        for i in range(0, N):
+            print("Collecting sample: {}/{}".format((i+1), N))
+            data[i, :, :] = collectData(rotations=config.repetitions)
+    else:    
+        data = recordRotations(rotations=config.repetitions, viz=args.show_input)
+    
     # Shift datavectors. If input: x[k], then target: x[k+1]
     input_data = torch.from_numpy(data[..., :-1])
     target_data = torch.from_numpy(data[..., 1:])
@@ -126,17 +125,17 @@ def main(args):
         data["test_input"], data["test_target"] = getDataBatch()   # training and testing...
         unfiltered_test_input = data["test_input"]
 
-        # Preprocess data: filter it
+        # 2) Preprocess data: filter it
         for batch_name, batch_data in data.items():
             data[batch_name] = preprocessBatch(batch_data, n=ave_n)
 
-        # 2) Train the model with the data
+        # 3) Train the model with the data
         model.train(data["train_input"], data["train_target"])
 
-        # 3) Check how the model is performing
+        # 4) Check how the model is performing
         y = model.predict(data["test_input"], data["test_target"])
 
-        # 4) Visualize performance
+        # 5) Visualize performance
         plot(unfiltered_test_input, data["test_input"], y[:, 1, :], i)
 
     # Save outcome

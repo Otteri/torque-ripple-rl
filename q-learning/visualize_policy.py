@@ -1,7 +1,8 @@
-from python_interface import Ilmarinen
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import gym
+import envs
 
 th_grid = np.linspace(0, 1, 100)
 q_actions = np.linspace(-0.23, 0.23, 7)
@@ -23,7 +24,8 @@ def selectBestAction(qtable, angle):
     return idx
 
 def oneRotation():
-    sim = Ilmarinen.SandboxApi()
+    Ilmarinen = gym.make('IlmarinenRawQlr-v0')
+    sim = Ilmarinen.api
     qtable = np.load("qtable.npy")
 
     speed = 0.02

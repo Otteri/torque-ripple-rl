@@ -1,12 +1,15 @@
-from python_interface import Ilmarinen
 import matplotlib.pyplot as plt
 import numpy as np
+import gym
+import envs
 
 DPI = 200 # plot resolution
 
 def runSimulator(use_ilc=False):
+    Ilmarinen = gym.make('IlmarinenRawILC-v0')
+    sim = Ilmarinen.api
+
     N = 1000 # amount of samples
-    sim = Ilmarinen.SandboxApi()
     sim.command.setSpeedReference(0.03)
 
     # Preallocate space

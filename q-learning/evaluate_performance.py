@@ -1,12 +1,14 @@
-from python_interface import Ilmarinen
 import matplotlib.pyplot as plt
 import numpy as np
+import gym
+import envs
 
 DPI = 100 # Plot resolution
 
 def runSimulator(use_compensator=False):
     N = 1000 # amount of samples
-    sim = Ilmarinen.SandboxApi()
+    Ilmarinen = gym.make('IlmarinenRawQlr-v0')
+    sim = Ilmarinen.api
     sim.command.setSpeedReference(0.02)
 
     # Preallocate space
@@ -16,9 +18,9 @@ def runSimulator(use_compensator=False):
     if use_compensator:
         sim.command.toggleLearning(True)
         sim.command.toggleQlr(True)
-        sim.command.step(999) # let learn (run 250s)
+        sim.command.step(999) # let learn
     else:
-        sim.command.step(10) # let Ilmarinen to settle
+        sim.command.step(10) # let to settle
 
     # Log data
     for i in range(N):
@@ -41,7 +43,7 @@ def plotData(time, data):
 # Create typical line chart
 def lineChart(time, data, title):
     plt.rc('grid', linestyle='dotted', color='silver')
-    fig = plt.figure(figsize=(6.4,5.0), dpi=DPI)
+    plt.figure(figsize=(6.4,5.0), dpi=DPI)
     plt.plot(time, data[2], label='Compensation torque', linewidth=0.8, color='yellowgreen')
     plt.plot(time, data[0], label='Pulsating torque', linewidth=0.8, color='darkorange')
     plt.plot(time, data[1], label='Actual torque (filtered)', linewidth=0.8, color='red')
@@ -64,7 +66,7 @@ def amplitudeSpectrum(times, data, title):
         return P
     
     plt.rc('grid', linestyle='dotted', color='silver')
-    fig = plt.figure(figsize=(6.4,5.0), dpi=DPI)
+    plt.figure(figsize=(6.4,5.0), dpi=DPI)
     T = times[1] - times[0]                   # sampling interval 
     L = times.size                            # data vector length
     Fn = (1/T)/2                              # calculate frequency

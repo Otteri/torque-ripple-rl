@@ -7,6 +7,11 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Run this file in order to train the compensator
+# Training can be visualized with --render flag, but this makes the
+# learning very slow, so the flag should not be used when pursuing performance.
+# See available training options with $ train.py --help
+
 # Hyperparameters
 gamma = 0.99
 alpha = 0.6
@@ -139,7 +144,6 @@ def train(env, qtable, episodes, render=False):
                 plotReward(reward_history, average_reward_history)
 
 def main(args):
-
     # Select correct environment
     if args.no_compensation and args.render:
         env = gym.make('IlmarinenEnv3-v0')

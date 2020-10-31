@@ -10,7 +10,6 @@ class Channel(IntEnum): # Channels in data block
     ANGLE = 0
     SIGNAL1 = 1 # torque / speed
 
-
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)

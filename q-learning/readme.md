@@ -15,7 +15,7 @@ The reward corresponds torque error. The reward approaches zero, thus the torque
 ![reward-history](images/reward-history.svg)
 
 ### Compensation policy  
-System states can be defined using rotor angle, which allows compensation values to be given with respect to the electrical angle of the rotor. After training, only rotor angle must be known in order to succesfully compensate pulsations.
+System states can be defined using rotor angle, which allows compensation values to be given with respect to the electrical angle of the rotor. After training, only the rotor angle must be known in order to succesfully produce compensating torque.
 ![reward-history](images/compensation-pattern.svg)
 
 ### Compensation performance  
