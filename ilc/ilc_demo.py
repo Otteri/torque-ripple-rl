@@ -54,14 +54,14 @@ def lineChart2(time1, data1, time2, data2, name=None):
     
     ax1.plot(time1, data1[2], label='Compensation torque', linewidth=0.8, color='green')
     ax1.plot(time1, data1[0], label='Pulsating torque', linewidth=0.8, color='blue')
-    ax1.plot(time1, data1[1], label='Total torque (filtered)', linewidth=0.8, color='red')
+    ax1.plot(time1, data1[1], label='Actual torque', linewidth=0.8, color='red')
     ax1.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     ax1.margins(0, .05)
     ax1.grid(True)
 
     ax2.plot(time2, data2[2], label='2Compensation torque', linewidth=0.8, color='green')
     ax2.plot(time2, data2[0], label='2Pulsating torque', linewidth=0.8, color='blue')
-    ax2.plot(time2, data2[1], label='2Total torque (filtered)', linewidth=0.8, color='red')
+    ax2.plot(time2, data2[1], label='2Actual torque', linewidth=0.8, color='red')
     ax2.tick_params(axis='x', which='both', bottom=True, top=False, labelbottom=True, labeltop=False)
     ax2.margins(0, .05)
     ax2.grid(True)

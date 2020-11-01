@@ -6,7 +6,7 @@ import envs
 
 def runSimulator():
     N = 1000 # amount of samples
-    Ilmarinen = gym.make('IlmarinenRawQlr-v0')
+    Ilmarinen = gym.make('IlmarinenRawQlr-v2')
     sim = Ilmarinen.api
     sim.command.setSpeedReference(0.02)
 

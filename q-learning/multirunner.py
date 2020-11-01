@@ -74,7 +74,7 @@ def runSimulator(sim, process_n, return_dict):
     return average_reward_history
 
 def main(i, alpha, gamma, e, return_dict):
-    Ilmarinen = gym.make("IlmarinenRawQlr-v0")
+    Ilmarinen = gym.make("IlmarinenRawQlr-v2")
     sim = Ilmarinen.api
     sim.command.setNoise(0.15)
 

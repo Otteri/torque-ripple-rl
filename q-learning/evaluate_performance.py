@@ -7,7 +7,7 @@ DPI = 100 # Plot resolution
 
 def runSimulator(use_compensator=False):
     N = 1000 # amount of samples
-    Ilmarinen = gym.make('IlmarinenRawQlr-v0')
+    Ilmarinen = gym.make('IlmarinenRawQlr-v1')
     sim = Ilmarinen.api
     sim.command.setSpeedReference(0.02)
 

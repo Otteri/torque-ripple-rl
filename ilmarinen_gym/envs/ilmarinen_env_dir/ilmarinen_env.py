@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym import Env
 
-class IlmarinenEnv(Env):    
+class IlmarinenEnv(Env):
     sim = None
     step_num = 0
     angle_prev = 1.0
@@ -34,7 +34,7 @@ class IlmarinenEnv(Env):
         self.speed = np.zeros(self.max_steps+1)
 
     def __init__(self, visual=False, compensation=True):
-        from envs.ilmarinen_env_dir.v2 import Ilmarinen as Ilmarinen_v2# here to avoid name collisions
+        from envs.ilmarinen_env_dir.v2 import Ilmarinen as Ilmarinen_v2 # here to avoid name collision
         self.sim = Ilmarinen_v2.SandboxApi()
         self.compensation = compensation
         self.step_size = 0.001

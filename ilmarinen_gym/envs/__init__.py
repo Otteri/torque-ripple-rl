@@ -1,23 +1,23 @@
 from gym.envs.registration import register
 
-# Allow direct access to Ilmarinen for scripts that can
-# utilize the interface to full extent, as it would be tiring to
-# to duplicate the interface to gym side. The architecture looks like:
-# C++ core | python interface | gym interface | python-script
-# Gym interface needs only to contain RL related functions.
-# Note: Ilmarinen could be imported directly, but since it is now here,
-# use: from envs import Ilmarinen, if direct access to python interface is required.
-#from envs.ilmarinen_env_dir import Ilmarinen
+# Allow direct access to C++ <-> Python interface, as it would be
+# tiring to duplicate the whole interface to gym.
 register(
     id='IlmarinenRawILC-v0',
     entry_point='envs.ilmarinen_env_dir:IlmarinenRawILC'
 )
 
 register(
-    id='IlmarinenRawQlr-v0',
-    entry_point='envs.ilmarinen_env_dir:IlmarinenRawQlr'
+    id='IlmarinenRawQlr-v1',
+    entry_point='envs.ilmarinen_env_dir:IlmarinenRawQlrV1'
 )
 
+register(
+    id='IlmarinenRawQlr-v2',
+    entry_point='envs.ilmarinen_env_dir:IlmarinenRawQlrV2'
+)
+
+# Typical Gym interface. Built on top of the previous interface
 register(
     id='IlmarinenEnv-v0',
     entry_point='envs.ilmarinen_env_dir:IlmarinenEnv',

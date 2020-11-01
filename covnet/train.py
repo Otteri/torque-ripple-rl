@@ -65,7 +65,7 @@ def plot(input_data, filtered_input, output, iteration):
     plt.plot(x, output[0, :], '-', color='green', label="learning output")
     plt.legend()
 
-    plt.savefig("predictions/prediction_%d.pdf" % (iteration+1))
+    plt.savefig("predictions/prediction_%d.svg" % (iteration+1))
     plt.close()
 
 # Avg-filter input signal, since it can be quite noisy and we don't want to try learn white noise.

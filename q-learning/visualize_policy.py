@@ -24,7 +24,7 @@ def selectBestAction(qtable, angle):
     return idx
 
 def oneRotation():
-    Ilmarinen = gym.make('IlmarinenRawQlr-v0')
+    Ilmarinen = gym.make('IlmarinenRawQlr-v2')
     sim = Ilmarinen.api
     qtable = np.load("qtable.npy")
 
