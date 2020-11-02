@@ -104,7 +104,7 @@ def getDataBatch(env):
 
 def main(args):
 
-    env = gym.make("FourierSeries-v0")
+    env = gym.make("FourierSeries-v0", config_path="./config")
 
     data = {
         "train_input"  : [],

@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import Env
-from . import config
 
 # Briefly:
 # Generates two channel data: [signal, angle]
@@ -12,11 +11,11 @@ from . import config
 
 # ==============================================================
 # Settings
-L = config.L
-N = config.N
-step_size = config.step_size
-repetitions = config.repetitions
-harmonics = config.harmonics
+# L = config.L
+# N = config.N
+# step_size = config.step_size
+# repetitions = config.repetitions
+# harmonics = config.harmonics
 PI2 = 2*np.pi
 
 # ==============================================================
@@ -24,17 +23,26 @@ PI2 = 2*np.pi
 
 class FourierSeries(Env):
 
-    def __init__(self):
+    def __init__(self, config_path=None):
+        if config_path:
+            import sys
+            print("Loading config from:", config_path)
+            sys.path.append(config_path)
+            import config
+        else:
+            from . import default_config as config
+
         self.L = config.L
         self.N = config.N
         self.step_size = config.step_size
         self.repetitions = config.repetitions
         self.harmonics = config.harmonics
+        self.noise = config.noise
 
     def _sample(self, angle):
         torque = 0.0
-        for harmonic_n in harmonics:
-            magnitue = harmonics[harmonic_n]
+        for harmonic_n in self.harmonics:
+            magnitue = self.harmonics[harmonic_n]
             torque += magnitue * np.cos(harmonic_n * angle)
         return torque
 
@@ -42,10 +50,10 @@ class FourierSeries(Env):
     # If default one rotation, then list has only one item
     # Currently only considers single rotation
     def _recordRotation(self):
-        signal_data = np.empty(L, 'float64')
-        rotation_data = np.empty(L, 'float64')
+        signal_data = np.empty(self.L, 'float64')
+        rotation_data = np.empty(self.L, 'float64')
         #step_size = PI2 / L # divide one revolution to L steps (theoretical value)
-        requested_sample_amount = L
+        requested_sample_amount = self.L
         current_sample_num = 0
 
         # Do one approximately full mechanical rotation
@@ -55,8 +63,8 @@ class FourierSeries(Env):
             rotation_data[current_sample_num] = rotor_angle
             signal_data[current_sample_num] = self._sample(rotor_angle)
 
-            noise = np.random.uniform(-config.noise, config.noise) # simulate encoder noise (%)
-            rotor_angle += step_size + noise
+            noise = np.random.uniform(-self.noise, self.noise) # simulate encoder noise (%)
+            rotor_angle += self.step_size + noise
             current_sample_num += 1
 
             # Make angle to stay within limits: [0, PI2]
@@ -67,7 +75,7 @@ class FourierSeries(Env):
         return recorded_data # [angle, signal1]
 
     def recordRotations(self, rotations=1, viz=False):
-        data = np.empty((rotations, 2, L), 'float64')
+        data = np.empty((rotations, 2, self.L), 'float64')
         for i in range(0, rotations):
             print("Collecting sample: {}/{}".format((i+1), rotations))
             data[i, :, :] = self._recordRotation()
@@ -108,7 +116,7 @@ class FourierSeries(Env):
         for i in range(0, data.shape[0]):
             print("Showing input: {}/{}".format((i+1), data.shape[0]))
             self._plot(data[i, 1, :], ax2, 'b') # signal1
-            self._plot(data[i, 0, :], ax1, 'r') # angle
+            self._plot(data[i, 0, :], ax1, 'r') # angleS
             plt.waitforbuttonpress()
 
         plt.close()
