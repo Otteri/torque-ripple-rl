@@ -5,8 +5,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 import config
 from enum import IntEnum
+import gym
+import pulsegen
 
-from datagenerator import recordRotations, L, N
+
+#from datagenerator import recordRotations, L, N
 
 from model import Model # SignalCovNet
 
@@ -80,17 +83,17 @@ def preprocessBatch(input_data, n=1):
 
 # Gather a data batch with N-rows
 # batch_num x signals_num x signal_len
-def getDataBatch():
-    data = np.empty((N, 2, L), 'float64')
+def getDataBatch(env):
+    data = np.empty((env.N, 2, env.L), 'float64')
     print("data shape:", data.shape)
 
     if args.use_sim:
 
-        for i in range(0, N):
-            print("Collecting sample: {}/{}".format((i+1), N))
+        for i in range(0, env.N):
+            print("Collecting sample: {}/{}".format((i+1), env.N))
             data[i, :, :] = collectData(rotations=config.repetitions)
     else:    
-        data = recordRotations(rotations=config.repetitions, viz=args.show_input)
+        data = env.recordRotations(rotations=config.repetitions, viz=args.show_input)
     
     # Shift datavectors. If input: x[k], then target: x[k+1]
     input_data = torch.from_numpy(data[..., :-1])
@@ -100,6 +103,8 @@ def getDataBatch():
 
 
 def main(args):
+
+    env = gym.make("FourierSeries-v0")
 
     data = {
         "train_input"  : [],
@@ -121,8 +126,8 @@ def main(args):
         print("STEP:", i)
 
         # 1) Get data
-        data["train_input"], data["train_target"] = getDataBatch() # Use different data for \
-        data["test_input"], data["test_target"] = getDataBatch()   # training and testing...
+        data["train_input"], data["train_target"] = getDataBatch(env) # Use different data for \
+        data["test_input"], data["test_target"] = getDataBatch(env)   # training and testing...
         unfiltered_test_input = data["test_input"]
 
         # 2) Preprocess data: filter it
