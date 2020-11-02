@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import gym
-import envs
+import ilmarinen
 
 th_grid = np.linspace(0, 1, 100)
 q_actions = np.linspace(-0.23, 0.23, 7)

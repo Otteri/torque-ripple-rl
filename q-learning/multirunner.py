@@ -5,7 +5,7 @@ import torch.multiprocessing as mp
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
-import envs
+import ilmarinen
 
 # Example call $ python multirunner.py --gammas 0.2,0.4,0.6,0.8,0.87,0.95
 

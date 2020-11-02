@@ -1,6 +1,6 @@
 import sys
 import gym
-import envs
+import ilmarinen
 import torch
 import random
 import argparse

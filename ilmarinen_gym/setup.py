@@ -1,6 +1,6 @@
 from setuptools import setup
 
-setup(name='ilmarinen_env',
+setup(name='ilmarinen',
     version='0.1',
     install_requires=['gym', 'numpy', 'matplotlib']
 )

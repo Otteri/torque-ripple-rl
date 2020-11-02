@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
-import envs
+import ilmarinen
 
 DPI = 100 # Plot resolution
 

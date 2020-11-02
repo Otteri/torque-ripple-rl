@@ -34,7 +34,7 @@ class IlmarinenEnv(Env):
         self.speed = np.zeros(self.max_steps+1)
 
     def __init__(self, visual=False, compensation=True):
-        from envs.ilmarinen_env_dir.v2 import Ilmarinen as Ilmarinen_v2 # here to avoid name collision
+        from ilmarinen.envs.v2 import Ilmarinen as Ilmarinen_v2 # here to avoid name collision
         self.sim = Ilmarinen_v2.SandboxApi()
         self.compensation = compensation
         self.step_size = 0.001
@@ -112,7 +112,8 @@ class IlmarinenEnv(Env):
     def hardReset(self):
         del self.sim
         self.clearPlot()
-        self.sim = Ilmarinen.SandboxApi()
+        from ilmarinen.envs.v2 import Ilmarinen as Ilmarinen_v2
+        self.sim = Ilmarinen_v2.SandboxApi()
 
         # Run to stable and then beginning of a electrical period
         self.sim.command.step(30)
