@@ -84,7 +84,7 @@ def preprocessBatch(input_data, n=1):
 # Gather a data batch with N-rows
 # batch_num x signals_num x signal_len
 def getDataBatch(env):
-    data = np.empty((env.N, 2, env.L), 'float64')
+    data = np.empty((config.repetitions, 2, config.L), 'float64')
     print("data shape:", data.shape)
 
     if args.use_sim:
@@ -104,7 +104,7 @@ def getDataBatch(env):
 
 def main(args):
 
-    env = gym.make("FourierSeries-v0", config_path="./config")
+    env = gym.make("FourierSeries-v0", config_path="config.py")
 
     data = {
         "train_input"  : [],

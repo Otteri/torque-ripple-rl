@@ -25,3 +25,5 @@ predictor/predictions/*.svg
 _Ilmarinen.pyd
 Ilmarinen.py
 TC/
+
+covnet/predictions*

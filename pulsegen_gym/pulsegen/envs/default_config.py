@@ -2,14 +2,13 @@
 #      Model      #
 ###################
 learning_rate = 0.1       # Optimizer lr
-hidden_layers = 32       # Amount of neurons in hidden layers
+hidden_layers = 32        # Amount of neurons in hidden layers
 
 
 ###################
 # Data generation #
 ###################
 L = 1000                  # Signal length
-N = 15                    # Number of signals in the data matrix
 repetitions = 15          # How many times pattern is repeated during single period
 datafile = "traindata"    # Where generated data is saved
 

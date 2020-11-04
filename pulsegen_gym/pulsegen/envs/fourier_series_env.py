@@ -9,15 +9,7 @@ from gym import Env
 # The module can also visualize the generated data.
 # Just call recordRotations function with desired arguments.
 
-# ==============================================================
-# Settings
-# L = config.L
-# N = config.N
-# step_size = config.step_size
-# repetitions = config.repetitions
-# harmonics = config.harmonics
 PI2 = 2*np.pi
-
 # ==============================================================
 # Data generation logic
 
@@ -32,10 +24,8 @@ class FourierSeries(Env):
         else:
             from . import default_config as config
 
-        self.L = config.L
-        self.N = config.N
+        self.data_length = config.L
         self.step_size = config.step_size
-        self.repetitions = config.repetitions
         self.harmonics = config.harmonics
         self.noise = config.noise
 
@@ -50,16 +40,14 @@ class FourierSeries(Env):
     # If default one rotation, then list has only one item
     # Currently only considers single rotation
     def _recordRotation(self):
-        signal_data = np.empty(self.L, 'float64')
-        rotation_data = np.empty(self.L, 'float64')
-        #step_size = PI2 / L # divide one revolution to L steps (theoretical value)
-        requested_sample_amount = self.L
+        signal_data = np.empty(self.data_length, 'float64')
+        rotation_data = np.empty(self.data_length, 'float64')
         current_sample_num = 0
 
         # Do one approximately full mechanical rotation
         # Might not be precisely full rotation, due to added noise
         rotor_angle = np.random.uniform(0, PI2) # Start from random angle
-        while(current_sample_num < requested_sample_amount):
+        while(current_sample_num < self.data_length):
             rotation_data[current_sample_num] = rotor_angle
             signal_data[current_sample_num] = self._sample(rotor_angle)
 
@@ -75,7 +63,7 @@ class FourierSeries(Env):
         return recorded_data # [angle, signal1]
 
     def recordRotations(self, rotations=1, viz=False):
-        data = np.empty((rotations, 2, self.L), 'float64')
+        data = np.empty((rotations, 2, self.data_length), 'float64')
         for i in range(0, rotations):
             print("Collecting sample: {}/{}".format((i+1), rotations))
             data[i, :, :] = self._recordRotation()
