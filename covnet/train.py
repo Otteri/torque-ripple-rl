@@ -7,11 +7,8 @@ import config
 from enum import IntEnum
 import gym
 import pulsegen
-
-
-#from datagenerator import recordRotations, L, N
-
 from model import Model # SignalCovNet
+
 
 # This model tries to learn a periodical signal from provided input data.
 # After learning, the model can predict future values of similar signal.
@@ -19,22 +16,17 @@ from model import Model # SignalCovNet
 #
 # number of recordings x rotations x signal length
 # Saved data: [angle, signal1]
-#
-# TODO train using speed signal with sim
-#
-# Data referes to the three dimensional block of data, 
-# wherease signal is just a 1d vector, which is part of data block.
+# Data referes to the three dimensional block of data, wherease signal is just a 1d vector
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--steps", type=int, default=15, help="steps to run")
 parser.add_argument("--show_input", default=False, action="store_true", help="Visualize input training data")
 parser.add_argument("--invert", default=False, action="store_true", help="Invert learning outcome")
 parser.add_argument("--use_sim", action='store_true', default=None, help="Use simulator for data generation")
-
 args = parser.parse_args()
 
 if args.use_sim:
-    from runsim import collectData
+    from runsim import recordRotations
 
 ave_n = 5
 
@@ -68,7 +60,7 @@ def plot(input_data, filtered_input, output, iteration):
     plt.plot(x, output[0, :], '-', color='green', label="learning output")
     plt.legend()
 
-    plt.savefig("predictions/prediction_%d.svg" % (iteration+1))
+    plt.savefig("predictions/prediction_%d.pdf" % (iteration+1))
     plt.close()
 
 # Avg-filter input signal, since it can be quite noisy and we don't want to try learn white noise.
@@ -88,10 +80,7 @@ def getDataBatch(env):
     print("data shape:", data.shape)
 
     if args.use_sim:
-
-        for i in range(0, env.N):
-            print("Collecting sample: {}/{}".format((i+1), env.N))
-            data[i, :, :] = collectData(rotations=config.repetitions)
+        data = recordRotations(rotations=config.repetitions, data_length=config.L, use_speed=True)
     else:    
         data = env.recordRotations(rotations=config.repetitions, viz=args.show_input)
     

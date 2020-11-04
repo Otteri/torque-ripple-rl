@@ -93,7 +93,7 @@ class IlmarinenEnv(Env):
         reward = getReward(0, self.sim.signal.getSimActualTorque())
         done = getDone()
         info = self.sim.signal.getTripCode()
-        torque = self.sim.signal.getSimActualTorqueFiltered()
+        torque = self.sim.signal.getSimActualTorque()
         state = np.array([torque, self.sim.signal.getRotorElectricalAngleCtrl(), 0])
         self.step_num += 1
 
@@ -103,7 +103,7 @@ class IlmarinenEnv(Env):
     # New period has started. Just reset steps.
     def reset(self):
         self.step_num = 0
-        signal = self.sim.signal.getSimActualTorqueFiltered()
+        signal = self.sim.signal.getSimActualTorque()
         angle = self.sim.signal.getRotorElectricalAngleCtrl()
         self.last_compensation_value = 0
         return np.array([signal, angle, 0])
