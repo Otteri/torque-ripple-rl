@@ -61,14 +61,17 @@ class Model(object):
                 loss = self.criterion(y[:, :shift], -filtered_target_signal) # Learn compensation signal
             else:
                 loss = self.criterion(y[:, :shift], filtered_target_signal) # Easier to compare input
-        
-        return loss, y
+            return loss, y
+        return y
 
     # In prediction, do not update NN-weights
     def predict(self, test_input, test_target=None):
             with torch.no_grad(): # Do not update network when predicting
-                loss, out = self.computeLoss(test_input, test_target)
-                print("prediction loss:", loss.item())
+                if test_target is not None:
+                    loss, out = self.computeLoss(test_input, test_target)
+                    print("prediction loss:", loss.item())
+                else:
+                    out = self.computeLoss(test_input, test_target)
                 out = self.shift(out, test_input) # Combine angle and signal again; use original input data
                 y = out.detach().numpy()
             return y #[:, 0] # return the 'new' prediction value

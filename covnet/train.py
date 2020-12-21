@@ -23,6 +23,7 @@ parser.add_argument("--steps", type=int, default=15, help="steps to run")
 parser.add_argument("--show_input", default=False, action="store_true", help="Visualize input training data")
 parser.add_argument("--invert", default=False, action="store_true", help="Invert learning outcome")
 parser.add_argument("--use_sim", action='store_true', default=None, help="Use simulator for data generation")
+parser.add_argument("--use_speed", action='store_true', default=False, help="When using sim, learns from 0: torque, 1: speed")
 args = parser.parse_args()
 
 if args.use_sim:
@@ -80,10 +81,10 @@ def getDataBatch(env):
     print("data shape:", data.shape)
 
     if args.use_sim:
-        data = recordRotations(rotations=config.repetitions, data_length=config.L, use_speed=True)
+        data = recordRotations(rotations=config.repetitions, data_length=config.L, use_speed=args.use_speed)
     else:    
         data = env.recordRotations(rotations=config.repetitions, viz=args.show_input)
-    
+
     # Shift datavectors. If input: x[k], then target: x[k+1]
     input_data = torch.from_numpy(data[..., :-1])
     target_data = torch.from_numpy(data[..., 1:])

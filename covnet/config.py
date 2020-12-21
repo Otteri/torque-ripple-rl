@@ -1,7 +1,7 @@
 ###################
 #      Model      #
 ###################
-learning_rate = 0.1       # Optimizer lr
+learning_rate = 0.1      # Optimizer lr
 hidden_layers = 32       # Amount of neurons in hidden layers
 
 
